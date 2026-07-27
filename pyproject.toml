@@ -1,0 +1,40 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "crewai_persistence_dynamodb"
+version = "0.1.0"
+description = "Amazon DynamoDB persistence backend for CrewAI Flows with built-in message pruning via agentstate-reducer"
+authors = [{name = "Kamal", email = "skamalj@github.com"}]
+readme = "README.md"
+requires-python = ">=3.10,<3.14"
+dependencies = [
+    "crewai",
+    "boto3",
+    "botocore",
+]
+keywords = ["crewai", "flows", "persistence", "dynamodb", "aws", "agent-state", "message-reducer"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+[project.optional-dependencies]
+reducer = ["agentstate-reducer>=0.3.0"]
+
+[project.urls]
+Homepage = "https://github.com/skamalj/crewai_persistence_dynamodb"
+Repository = "https://github.com/skamalj/crewai_persistence_dynamodb.git"
+
+[dependency-groups]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov",
+    "crewai_persistence_dynamodb[reducer]",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/crewai_persistence_dynamodb"]
