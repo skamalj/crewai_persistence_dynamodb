@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "crewai_persistence_dynamodb"
-version = "0.1.0"
+version = "0.2.0"
 description = "Amazon DynamoDB persistence backend for CrewAI Flows with built-in message pruning via agentstate-reducer"
 authors = [{name = "Kamal", email = "skamalj@github.com"}]
 readme = "README.md"
@@ -23,7 +23,7 @@ classifiers = [
 ]
 
 [project.optional-dependencies]
-reducer = ["agentstate-reducer>=0.3.0"]
+reducer = ["agentstate-reducer>=0.4.0"]
 
 [project.urls]
 Homepage = "https://github.com/skamalj/crewai_persistence_dynamodb"

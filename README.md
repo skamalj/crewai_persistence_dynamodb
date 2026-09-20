@@ -70,3 +70,31 @@ One item per flow, keyed by `flow_uuid`. The flow state is stored as a JSON stri
 ## License
 
 MIT
+
+## Long-term memory via `on_prune` (agentstate-reducer >= 0.4.0)
+
+Messages pruned from the flow state are exactly the ones leaving the model's view. The persistence layer forwards a **memory namespace** to the reducer, and any `on_prune` hook receives `(pruned_messages, namespace)` — so pruned turns can flow straight into CrewAI's unified `Memory` (or any store), with no package coupling:
+
+```python
+from agentstate_reducer import MessageReducer, ReducerConfig, Background
+from crewai.memory import Memory
+
+memory = Memory(storage=...)                       # e.g. crewai-memory-dynamodb
+
+def remember(pruned, namespace):
+    text = "\n".join(m["content"] for m in pruned)
+    memory.remember_many(memory.extract_memories(text), scope=namespace)   # LLM calls -> run off-path
+
+reducer = MessageReducer(config=ReducerConfig(max_messages=20, on_prune=[Background(remember)]))
+
+class SupportState(BaseModel):
+    id: str = ""
+    memory_namespace: str = "/user/kamal"          # long-term scope: the USER, not the flow
+    messages: list = []
+
+@persist(DynamoDBFlowPersistence(..., reducer=reducer))
+class SupportFlow(Flow[SupportState]):
+    ...
+```
+
+The persistence layer reads `memory_namespace` (or whatever `ReducerConfig.namespace_key` names) from the flow state on every `save_state` and passes it through untouched. If the state never sets it, the namespace falls back to `"/flow/<flow_uuid>"`. Each pruned message reaches the hooks once.

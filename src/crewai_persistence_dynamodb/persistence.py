@@ -26,6 +26,34 @@ from pydantic import BaseModel, Field, PrivateAttr
 from crewai.flow.persistence.base import FlowPersistence
 
 
+
+def _memory_namespace(reducer: Any, state: Dict[str, Any], flow_uuid: str) -> str:
+    """Resolve the long-term-memory namespace forwarded to reducer ``on_prune`` hooks.
+
+    Looks up ``reducer.config.namespace_key`` (default ``"memory_namespace"``) in
+    the flow state; the app sets it in its state model, e.g.
+    ``memory_namespace = "/user/kamal"`` (a CrewAI Memory scope path). Falls back
+    to ``"/flow/<flow_uuid>"`` so apps that never set it still get per-flow
+    memory. The persistence layer never builds the namespace beyond that fallback.
+    """
+    key = getattr(getattr(reducer, "config", None), "namespace_key", "memory_namespace")
+    ns = state.get(key)
+    return ns if ns is not None else f"/flow/{flow_uuid}"
+
+
+def _apply_reducer(reducer: Any, state: Dict[str, Any], messages_key: str, flow_uuid: str) -> None:
+    """Prune ``state[messages_key]`` in place, forwarding the memory namespace.
+
+    agentstate-reducer >= 0.4.0 accepts ``namespace=``; older reducers ignore it.
+    """
+    try:
+        result = reducer.reduce(
+            existing=state[messages_key], new=[], namespace=_memory_namespace(reducer, state, flow_uuid)
+        )
+    except TypeError:  # agentstate-reducer < 0.4.0
+        result = reducer.reduce(existing=state[messages_key], new=[])
+    state[messages_key] = result.surviving
+
 class DynamoDBFlowPersistence(FlowPersistence):
     """DynamoDB-backed persistence for CrewAI Flows."""
 
@@ -108,8 +136,7 @@ class DynamoDBFlowPersistence(FlowPersistence):
             d = dict(state_data)
 
         if self._reducer is not None and self.messages_key in d:
-            result = self._reducer.reduce(existing=d[self.messages_key], new=[])
-            d[self.messages_key] = result.surviving
+            _apply_reducer(self._reducer, d, self.messages_key, flow_uuid)
 
         item = {
             "flow_uuid": flow_uuid,
